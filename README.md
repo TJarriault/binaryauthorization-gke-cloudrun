@@ -46,10 +46,15 @@ On the guideline you'll retrieve :
 Step 5 : Setup the Cloud Build pipeline for CloudRUN application
 | Chapter | Description |
 | :---: | :---: | :---: |
+
 | `1` | Solution 1 : Manual deployment |
+
 | `2` | Solution 2 : Infrastructure deployment TERRAFORM & CloudBuild |
+
 | `3` | Step 3 : Setup the Cloud Build pipeline for Cloud Run application |
+
 | `4` | Step 4 : Setup the Cloud Build pipeline for GKE application |
+
 | `5` | Step 5 : Setup the Cloud Build pipeline for CloudRUN application |
 
 
