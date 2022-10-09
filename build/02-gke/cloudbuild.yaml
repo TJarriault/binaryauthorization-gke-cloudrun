@@ -1,0 +1,113 @@
+steps:
+  # Build 
+  - id: Build Docker image
+    name: gcr.io/cloud-builders/docker
+    dir: app
+    args:
+      - '-c'
+      - |
+        echo "Development exec only"
+        docker build -f Dockerfile . -t gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA}  --build-arg PROJECT_ID=${_PROJECT}
+    entrypoint: bash
+
+  # Pushing to artifact registry
+  - id: Push the containerized application
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "gcr.io/$_PROJECT/${_IMAGE_NAME}:${SHORT_SHA}"
+      ]
+
+  # Run a vulnerability scan at _SECURITY level
+  - id: Vulnerability scan
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud artifacts docker images scan \
+        "gcr.io/$_PROJECT/$_IMAGE_NAME:${SHORT_SHA}" \
+        --remote \
+        --format="value(response.scan)" > /workspace/scan_id.txt
+
+  # Analyze the result of the scan
+  - id: Check vulnerabilities severity
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud artifacts docker images list-vulnerabilities $(cat /workspace/scan_id.txt) \
+        --format="value(vulnerability.effectiveSeverity)" | if grep -Fxq ${_SEVERITY}; \
+        then echo "Failed vulnerability check for ${_SEVERITY} level" && exit 1; else echo "No ${_SEVERITY} vulnerability found, congrats !" && exit 0; fi
+
+  # Create attestation to deploy only images built by Cloud Build
+  - id: Create attestation
+    name: "gcr.io/${PROJECT_ID}/binauthz-attestation:latest"
+    args:
+      - "--artifact-url"
+      - "gcr.io/$_PROJECT/$_IMAGE_NAME:${SHORT_SHA}"
+      - "--attestor"
+      - "projects/${PROJECT_ID}/attestors/${_ATTESTOR_NAME}"
+      - "--keyversion"
+      - "projects/${PROJECT_ID}/locations/${_KMS_LOCATION}/keyRings/${_KMS_KEYRING}/cryptoKeys/${_KMS_KEY}/cryptoKeyVersions/${_KMS_KEY_VERSION}"
+
+  # Get SHA256
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: 'bash'
+    args:
+      - "-c"
+      - |
+        gcloud container images describe gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA} --format='get(image_summary.digest)' > _TAG2
+        cat _TAG2
+
+
+  # Create pipeline on Cloud Deploy
+  - id: 'Create Clouddeploy pipeline'
+    name: "gcr.io/cloud-builders/gcloud"
+    dir: build/02-gke/deploy
+    args:
+      - deploy
+      - apply
+      - --region=${_REGION}
+      - --file=clouddeploy.yaml
+
+
+  # Deployment on the GKE Cluster
+  #- id: 'Deploy on GKE'
+  #  name: "gcr.io/cloud-builders/gcloud"
+  #  dir: build/02-gke/config
+  #  args:
+  #    - deploy
+  #    - releases
+  #    - create
+  #    - ${_IMAGE_NAME}-${SHORT_SHA}
+  #    - --region=${_REGION}
+  #    - --delivery-pipeline=${_PIPELINE}
+  #    - --annotations="commitID=${REVISION_ID}"
+  #    - --images=gke-container=gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA}
+  #    - --skaffold-file=skaffold.yaml
+
+  - id: 'Deploy on GKE'
+    name: "gcr.io/cloud-builders/gcloud"
+    dir: build/02-gke/config
+    args:
+      - '-c'
+      - |
+        DIGEST=$(gcloud container images describe --format 'value(image_summary.digest)' gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA})
+        gcloud deploy releases create ${_IMAGE_NAME}-${SHORT_SHA} --region=${_REGION} --delivery-pipeline=${_PIPELINE} --annotations="commitID=${REVISION_ID}" --images=gke-container=gcr.io/${_PROJECT}/${_IMAGE_NAME}@$${DIGEST} --skaffold-file=skaffold.yaml
+    entrypoint: bash
+
+
+substitutions:
+    _IMAGE_NAME: helloworld-app
+    _PROJECT: 
+    _REGION: europe-west1
+    _ARTIFACT_REGION: europe
+    _ARTIFACT_REGISTRY_REPO: eu.gcr.io
+    _CLUSTER: -gke-cluster
+    _ENV: prod
+    _K8S_NAMESPACE: prod
+    _K8S_YAML_PATH: .
+    _PIPELINE: gke-pipeline

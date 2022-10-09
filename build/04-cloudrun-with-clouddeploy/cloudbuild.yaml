@@ -1,0 +1,136 @@
+steps:
+  # Build 
+  - id: Build Docker image
+    name: gcr.io/cloud-builders/docker
+    dir: app
+    args:
+      - '-c'
+      - |
+        echo "Development exec only"
+        docker build -f Dockerfile . -t gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA}  --build-arg PROJECT_ID=${_PROJECT}
+    entrypoint: bash
+
+  # Pushing to artifact registry
+  - id: Push the containerized application
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "gcr.io/$_PROJECT/${_IMAGE_NAME}:${SHORT_SHA}"
+      ]
+
+  # Run a vulnerability scan at _SECURITY level
+  - id: Vulnerability scan
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud artifacts docker images scan \
+        "gcr.io/$_PROJECT/$_IMAGE_NAME:${SHORT_SHA}" \
+        --remote \
+        --format="value(response.scan)" > /workspace/scan_id.txt
+
+  # Analyze the result of the scan
+  - id: Check vulnerabilities severity
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud container images list-vulnerabilities $(cat /workspace/scan_id.txt) \
+        --format="value(vulnerability.effectiveSeverity)" | if grep -Fxq ${_SEVERITY}; \
+        then echo "Failed vulnerability check for ${_SEVERITY} level" && exit 1; else echo "No ${_SEVERITY} vulnerability found, congrats !" && exit 0; fi
+
+  # Get SHA256
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: 'bash'
+    args:
+      - "-c"
+      - |
+        gcloud container images describe gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA} --format='get(image_summary.digest)' > _TAG2
+        cat _TAG2
+
+  # Get Image SHA from Artifact Registry
+  - id: "Get Image Digest"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud container images describe \
+        gcr.io/$_PROJECT/$_IMAGE_NAME:${SHORT_SHA} \
+        --format 'value(image_summary.digest)' > /workspace/image-sha.txt
+
+
+
+  # Create attestation to deploy only images built by Cloud Build
+  #- id: Create attestation
+  #  name: "gcr.io/${_PROJECT}/binauthz-attestation:latest"
+  #  args:
+  #    - "--artifact-url"
+  #    - "gcr.io/$_PROJECT/$_IMAGE_NAME@${SHORT_SHA}"
+  #    - "--attestor"
+  #    - "projects/${_PROJECT}/attestors/${_ATTESTOR_NAME}"
+  #    - "--keyversion"
+  #    - "projects/${_PROJECT}/locations/${_KMS_LOCATION}/keyRings/${_KMS_KEYRING}/cryptoKeys/${_KMS_KEY}/cryptoKeyVersions/${_KMS_KEY_VERSION}"
+ 
+  # Create attestation to deploy only images built by Cloud Build
+  - id: Create attestation
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        DIGEST=$(gcloud container images describe --format 'value(image_summary.digest)' gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA})
+        gcloud beta container binauthz attestations sign-and-create \
+        --artifact-url="gcr.io/$_PROJECT/$_IMAGE_NAME@$${DIGEST}" \
+        --attestor="${_ATTESTOR_NAME}" \
+        --attestor-project="${_PROJECT}" \
+        --keyversion-project="${_PROJECT}" \
+        --keyversion-location="${_KMS_LOCATION}" \
+        --keyversion-keyring="${_KMS_KEYRING}" \
+        --keyversion-key="${_KMS_KEY}" \
+        --keyversion="${_KMS_KEY_VERSION}"
+
+
+
+  # Create pipeline on Cloud Deploy
+  - id: 'Create Clouddeploy pipeline'
+    name: "gcr.io/cloud-builders/gcloud"
+    dir: build/04-cloudrun-with-clouddeploy/deploy
+    args:
+      - deploy
+      - apply
+      - --region=${_REGION}
+      - --file=clouddeploy.yaml
+      - --project=${_PROJECT}
+
+
+  - id: 'Deploy cloudrun'
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    dir: build/04-cloudrun-with-clouddeploy/config
+    args:
+        [
+          "deploy", "releases", "create", "release-${_IMAGE_NAME}-${SHORT_SHA}",
+          "--delivery-pipeline", "cloud-run-pipeline",
+          "--region", "${_REGION}",
+          "--images", "app-container=gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA}",
+          "--skaffold-file", "skaffold.yaml"
+        ]
+    entrypoint: gcloud
+
+
+
+substitutions:
+    _PIPELINE: cloud-run-pipeline
+    _IMAGE_NAME: IMAGE__NAME
+    _PROJECT: PROJECT_ID
+    _REGION: europe-west1
+    _SERVICE_NAME: hello-worldcloudrun-service
+    _ENV: dev
+    _KMS_KEY: sign-codedeploy-key
+    _KMS_KEY_VERSION: '1'
+    _KMS_KEYRING: kms-binauthz-keys
+    _KMS_LOCATION: global
+    _ATTESTOR_NAME: vulnz-attestator

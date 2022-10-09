@@ -1,0 +1,17 @@
+---
+description: Application deployment with Binary authorization for GKE
+disabled: false
+filename: build/02-gke/my-cloudbuild.yaml
+name: GKE-deploy-application-image-1
+substitutions:
+  _ATTESTOR_NAME: @ATTESTOR_NAME@
+  _COMPUTE_REGION: @REGION@
+  _KMS_KEY: @KMS_KEY@
+  _KMS_KEYRING: @KMS_KEYRING@
+  _KMS_KEY_VERSION: @KMS_KEY_VERSION@ 
+  _KMS_LOCATION: @KMS_LOCATION@
+  _PROD_CLUSTER: @PROD_CLUSTER@ 
+triggerTemplate:
+  branchName: @BRANCH_REGEX@
+  projectId: @PRPOJECT@
+  repoName: @REPO@

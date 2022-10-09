@@ -1,0 +1,48 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: gke-pipeline
+description: GKE Pipeline
+serialPipeline:
+  stages:
+    - targetId: gke-dev
+      profiles:
+        - dev
+    - targetId: gke-staging
+      profiles:
+        - staging
+    - targetId: gke-prod
+      profiles:
+        - prod
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: gke-dev
+description: GKE development environment
+gke:
+  # You need to substitute your project id here
+  #cluster: projects//locations/europe-west1/clusters/k8s
+  cluster: projects//locations/europe-west1/clusters/-gke-cluster
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: gke-staging
+  requireApproval: false
+description: GKE staging environment
+gke:
+  # You need to substitute your project id here
+  #cluster: projects//locations/europe-west1/clusters/k8s
+  cluster: projects//locations/europe-west1/clusters/-gke-cluster-prod
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: gke-prod
+  requireApproval: true
+description: GKE production environment
+gke:
+  # You need to substitute your project id here
+  #cluster: projects//locations/europe-west1/clusters/k8s
+  cluster: projects//locations/europe-west1/clusters/-gke-cluster-prod

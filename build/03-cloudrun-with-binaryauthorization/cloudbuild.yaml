@@ -1,0 +1,95 @@
+steps:
+  # Build 
+  - id: Build Docker image
+    name: gcr.io/cloud-builders/docker
+    dir: app
+    args:
+      - '-c'
+      - |
+        echo "Development exec only"
+        docker build -f Dockerfile . -t gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA}  --build-arg PROJECT_ID=${_PROJECT}
+    entrypoint: bash
+
+  # Pushing to artifact registry
+  - id: Push the containerized application
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "gcr.io/$_PROJECT/${_IMAGE_NAME}:${SHORT_SHA}"
+      ]
+
+  # Run a vulnerability scan at _SECURITY level
+  - id: Vulnerability scan
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud artifacts docker images scan \
+        "gcr.io/$_PROJECT/$_IMAGE_NAME:${SHORT_SHA}" \
+        --remote \
+        --format="value(response.scan)" > /workspace/scan_id.txt
+
+  # Analyze the result of the scan
+  - id: Check vulnerabilities severity
+    name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud container images list-vulnerabilities $(cat /workspace/scan_id.txt) \
+        --format="value(vulnerability.effectiveSeverity)" | if grep -Fxq ${_SEVERITY}; \
+        then echo "Failed vulnerability check for ${_SEVERITY} level" && exit 1; else echo "No ${_SEVERITY} vulnerability found, congrats !" && exit 0; fi
+
+  # Get Image SHA from Artifact Registry
+  - id: "Get Image Digest"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: /bin/bash
+    args: 
+      - -c
+      - |
+        gcloud container images describe \
+        gcr.io/$_PROJECT/$_IMAGE_NAME:${SHORT_SHA} \
+        --format 'value(image_summary.digest)' > /workspace/image-sha.txt
+
+  # Attest Image for Binary Authorization
+  - id: "Attest Image"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: /bin/bash
+    args:
+      - -c
+      - |
+        gcloud beta container binauthz attestations sign-and-create \
+        --artifact-url=gcr.io/$_PROJECT/$_IMAGE_NAME@`cat /workspace/image-sha.txt` \
+        --attestor=projects/${PROJECT_ID}/attestors/${_ATTESTOR_NAME} \
+        --keyversion-project=${PROJECT_ID} --keyversion-location=${_KMS_LOCATION} \
+        --keyversion-keyring=${_KMS_KEYRING} --keyversion-key=${_KMS_KEY} --keyversion=${_KMS_KEY_VERSION} 
+
+  - id: 'Deploy on CloudRUN
+    name: "gcr.io/cloud-builders/gcloud"
+    dir: build/02-gke/config
+    args:
+      - '-c'
+      - |
+        DIGEST=$(gcloud container images describe --format 'value(image_summary.digest)' gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA})
+        gcloud run deploy ${_SERVICE_NAME} --region ${_REGION} \
+              --image gcr.io/${_PROJECT}/${_IMAGE_NAME}:${SHORT_SHA} \
+              --allow-unauthenticated --binary-authorization default
+
+    entrypoint: bash
+
+
+substitutions:
+  _IMAGE_NAME: helloworld-app
+  _PROJECT: 
+  _REGION: europe-west1
+  _SERVICE_NAME: hello-worldcloudrun-service
+  _ENV: dev
+  _KMS_KEY: sign-codedeploy-key
+  _KMS_KEY_VERSION: 1
+  _KMS_KEYRING: kms-binauthz-keys
+  _KMS_LOCATION: global
+  _ATTESTOR_NAME: vulnz-attestator
+  _ATTESTOR_NAME: test-attestor
+

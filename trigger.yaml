@@ -1,0 +1,11 @@
+---
+description: Infrastructure deployment
+disabled: false
+filename: my-cloudbuild-init.yaml
+name: TF-Infra
+substitutions:
+  _PROJECT: _PROJECT_ 
+triggerTemplate:
+  branchName: _BRANCH_REGEX_
+  projectId: _PROJECT_
+  repoName: _REPO_
