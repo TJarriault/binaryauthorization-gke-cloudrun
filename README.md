@@ -44,6 +44,7 @@ Pipeline description
 
 On the guideline you'll retrieve :
 Step 5 : Setup the Cloud Build pipeline for CloudRUN application
+
 | Chapter | Description |
 | :---: | :---: | :---: |
 
