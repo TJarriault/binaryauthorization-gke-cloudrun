@@ -165,19 +165,18 @@ defaultAdmissionRule:
 globalPolicyEvaluationMode: ENABLE
 clusterAdmissionRules:
   # Staging cluster
-  global.staging-cluster:
+  europe-west1.<project_ID>-cluster-staging:
     evaluationMode: REQUIRE_ATTESTATION
     enforcementMode: ENFORCED_BLOCK_AND_AUDIT_LOG
     requireAttestationsBy:
     - projects/_PROJECT_ID_/attestors/vulnz-attestator
 
   # Production cluster
-  global.prod-cluster:
+  europe-west1.<project_ID>-cluster-prod:
     evaluationMode: REQUIRE_ATTESTATION
     enforcementMode: ENFORCED_BLOCK_AND_AUDIT_LOG
     requireAttestationsBy:
     - projects/_PROJECT_ID_/attestors/vulnz-attestator
-    - projects/_PROJECT_ID_/attestors/qa-attestor
 EOM
 ```
 
@@ -496,12 +495,12 @@ attestation:
   signatures:
   - publicKeyId: //cloudkms.googleapis.com/v1/projects/_PROJECT_ID_/locations/global/keyRings/binauthz/cryptoKeys/vulnz-signer/cryptoKeyVersions/1
     signature: eEoYcFvHvj7EWVZ2hhHRScefPS7VYEyX73Vc-dwaer_ZqOAeLCBvOjdQdnpmPmTtkZHN1Vj9EaCqYKEVJ3Opum5ZD_AiHbDOMRNEY7EtH_N883MTabZuLoW9VrlSoW6Isq91rUSdkLphp8P8Ds8QUnrVuf1X_o-2QJ-UjwNBYz6AmPxrdTA76iphC4HhEVayB52AOo9uYYTZZqRnmnBrtGUt_JYf537Pit-_D1Q1z97T2PN_MprnZZg6YohY-TFNputYgAsj8pxXmkT6c69tnZeSVPI2NIkmGlLd24E9qAJnJGaGZEcJhIWs8Y4NwriQcjXa6orNM4w9Twl_mw4cJcC1-YTVQ1slmw9kgawbOtR5I-nGXH1IJIagt3azGuyeJBFw0atahUKd0NawpVl9VVxwHigXEUva7OMgMx_ZlOzqtwoXi2j2RXB7QAh3rI-FmxnNa_dkhPbfYgvSplbqtOFx5qyBICGWSdevvTNlGiCZNbGi26Fe3EZ_NB5nRDBugUia9F08r1xAXJZD-ncnOPYOBkdvgTOAMupfPFSeFTkG3b8qA4Y9PHCgCqkvLn1B9U-jJizo8NmmTCGPymNGje5z2CGfpN5NgNBeoskyVsV5Yf54HaNm8TrkuMjfqwXqo7aQhF_amdsToVm8aCghVxxR8l5wYrtzfJwMXwhmTMk=
-createTime: '2022-08-19T15:38:34.159772Z'
+createTime: '2022-09-29T15:38:34.159772Z'
 kind: ATTESTATION
 name: projects/_PROJECT_ID_/occurrences/15b44946-7b2f-4550-8ce1-e09f6fbac78f
 noteName: projects/_PROJECT_ID_/notes/vulnz-note
-resourceUri: https://gcr.io/_PROJECT_ID_/testbinauth@sha256:141df63a8c08f4de842408fa49eed2407f9942f5ef9e22bdd4efaa51b8990d5a
-updateTime: '2022-08-19T15:38:34.159772Z'
+resourceUri: https://gcr.io/_PROJECT_ID_/helloworld@sha256:141df63aEc08f4de842408fa49eed2407f9942f5ef9e22bdd4efaa51bE990d5a
+updateTime: '2022-09-29T15:38:34.159772Z'
 ```
 
 

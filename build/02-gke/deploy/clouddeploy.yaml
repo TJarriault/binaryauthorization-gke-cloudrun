@@ -23,7 +23,7 @@ description: GKE development environment
 gke:
   # You need to substitute your project id here
   #cluster: projects//locations/europe-west1/clusters/k8s
-  cluster: projects//locations/europe-west1/clusters/-gke-cluster
+  cluster: projects//locations/europe-west1/clusters/PROJECT__ID-gke-cluster
 ---
 apiVersion: deploy.cloud.google.com/v1
 kind: Target
@@ -34,7 +34,7 @@ description: GKE staging environment
 gke:
   # You need to substitute your project id here
   #cluster: projects//locations/europe-west1/clusters/k8s
-  cluster: projects//locations/europe-west1/clusters/-gke-cluster-prod
+  cluster: projects//locations/europe-west1/clusters/PROJECT__ID-gke-cluster-prod
 ---
 apiVersion: deploy.cloud.google.com/v1
 kind: Target
@@ -45,4 +45,4 @@ description: GKE production environment
 gke:
   # You need to substitute your project id here
   #cluster: projects//locations/europe-west1/clusters/k8s
-  cluster: projects//locations/europe-west1/clusters/-gke-cluster-prod
+  cluster: projects//locations/europe-west1/clusters/PROJECT__ID-gke-cluster-prod
