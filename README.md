@@ -247,7 +247,7 @@ gcloud container binauthz attestors list
 Results:
 | Name | Note | NUM_PUBLIC_KEYS |
 | :---: | :---: | :---: |
-| `vulnz-attestator` | projects/gcp-cohorte-1/notes/vulnz-note2 | 0 |
+| `vulnz-attestator` | projects/<PROJECT_ID>/notes/vulnz-note2 | 0 |
 
 
 ## Add the KMS public key for the attestor's signing key
@@ -271,7 +271,7 @@ gcloud container binauthz attestors list
 Results:
 | Name | Note | NUM_PUBLIC_KEYS |
 | :---: | :---: | :---: |
-| `vulnz-attestator` | projects/gcp-cohorte-1/notes/vulnz-note2 | 1 |
+| `vulnz-attestator` | projects/<PROJECT_ID>/notes/vulnz-note2 | 1 |
 
 
 ## Build attestator image
